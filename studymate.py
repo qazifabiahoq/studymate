@@ -174,16 +174,10 @@ with st.sidebar:
         use_container_width=True
     )
 
-# ---- Main ----
-st.markdown("""
-    <div style='background: #2E86AB; padding: 25px; border-radius: 10px; 
-                text-align: center; margin-bottom: 20px;'>
-        <h1 style='color: white; margin: 0; font-size: 2.2em;'>StudyMate</h1>
-        <p style='color: white; font-size: 1em; margin-top: 8px;'>AI-Powered Study Assistant</p>
-    </div>
-""", unsafe_allow_html=True)
-
-st.markdown("<hr style='border: 1px solid #DEE2E6; margin: 25px 0;'>", unsafe_allow_html=True)
+# ---- Main Title - GUARANTEED TO SHOW ----
+st.title("StudyMate")
+st.subheader("AI-Powered Study Assistant")
+st.divider()
 
 # ---- Generate ----
 if generate_btn:
@@ -196,48 +190,36 @@ if generate_btn:
     else:
         for topic_idx, topic in enumerate(topics, 1):
             # Topic heading
-            st.markdown(f"""
-                <div style='background-color: #E9ECEF; padding: 12px; border-radius: 8px; 
-                            margin: 15px 0; border-left: 4px solid #2E86AB;'>
-                    <h2 style='margin: 0; font-size: 1.4em; color: #2E86AB;'>{topic}</h2>
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"## {topic}")
             
             modes_to_run = ["explain", "simplify", "examples", "quiz"] if mode == "all" else [mode]
             
             for m in modes_to_run:
-                # Mode subtitle with proper styling
-                st.markdown(f"""
-                    <h3 style='color: #495057; 
-                               font-size: 1.1em; 
-                               margin-top: 15px; 
-                               margin-bottom: 8px;
-                               font-weight: 600;'>
-                        {m.title()}
-                    </h3>
-                """, unsafe_allow_html=True)
+                st.markdown(f"### {m.title()}")
                 
                 result = ask_studymate(topic, m)
                 
                 # Content box
                 st.markdown(f"""
-                    <div style='background-color: #F8F9FA; padding: 18px; border-radius: 6px; 
-                                border-left: 3px solid #6C757D; margin: 10px 0;'>
-                        <div style='font-size: 15px; line-height: 1.7; color: #000000; white-space: pre-wrap;'>
+                    <div style='background-color: #F8F9FA; 
+                                padding: 18px; 
+                                border-radius: 6px; 
+                                border-left: 3px solid #6C757D; 
+                                margin: 10px 0;'>
+                        <div style='font-size: 15px; 
+                                   line-height: 1.7; 
+                                   color: #000000; 
+                                   white-space: pre-wrap;'>
                             {result}
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
             
             if topic_idx < len(topics):
-                st.markdown("<hr style='border: 1px solid #DEE2E6; margin: 25px 0;'>", unsafe_allow_html=True)
+                st.divider()
         
         st.success("Generated successfully")
 
 # Footer
-st.markdown("<br><br>", unsafe_allow_html=True)
-st.markdown("""
-    <div style='text-align: center; padding: 15px; border-top: 1px solid #DEE2E6; color: #6C757D;'>
-        <p style='margin: 0; font-size: 14px;'>StudyMate • Educational Tool</p>
-    </div>
-""", unsafe_allow_html=True)
+st.divider()
+st.caption("StudyMate • Educational Tool")
