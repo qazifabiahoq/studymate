@@ -1,29 +1,17 @@
 import streamlit as st
 from datetime import datetime
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
+from transformers import pipeline
 
 # ---- Model Setup ----
 @st.cache_resource
 def load_model():
-    model_name = "distilgpt2"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype=torch.float32,
-        low_cpu_mem_usage=True
+    return pipeline(
+        "text-generation",
+        model="distilgpt2",
+        device=-1  # Force CPU
     )
-    
-    device = "cpu"
-    model = model.to(device)
-    model.eval()
-    
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    
-    return model, tokenizer, device
 
-model, tokenizer, device = load_model()
+study_bot = load_model()
 
 # ---- StudyMate Function ----
 def ask_studymate(topic, mode="explain"):
@@ -41,20 +29,16 @@ def ask_studymate(topic, mode="explain"):
     max_tokens = {"explain": 150, "simplify": 100, "examples": 120, "quiz": 100}[mode]
 
     try:
-        inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True)
-        inputs = {k: v.to(device) for k, v in inputs.items()}
+        output = study_bot(
+            prompt,
+            max_new_tokens=max_tokens,
+            do_sample=True,
+            temperature=0.7,
+            truncation=True,
+            pad_token_id=50256  # GPT-2 EOS token
+        )
         
-        with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=max_tokens,
-                do_sample=True,
-                temperature=0.7,
-                pad_token_id=tokenizer.pad_token_id,
-                eos_token_id=tokenizer.eos_token_id
-            )
-        
-        result = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        result = output[0]["generated_text"]
         
         if result.startswith(prompt):
             result = result[len(prompt):].strip()
