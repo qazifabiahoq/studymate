@@ -1,10 +1,10 @@
 
 
-# StudyMate 📚
+# StudyMate
 
 **StudyMate** is an AI-powered study assistant built with Streamlit and Groq’s AI models. It helps you learn any topic by generating explanations, simplified summaries, real-world examples, and quizzes.
 
-💻 **Live App:** [https://studymateapplication.streamlit.app/](https://studymateapplication.streamlit.app/)
+**Live App:** [https://studymateapplication.streamlit.app/](https://studymateapplication.streamlit.app/)
 
 ---
 
