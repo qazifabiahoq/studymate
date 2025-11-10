@@ -318,7 +318,7 @@ if generate_btn:
         st.balloons()
 
 # Footer
-st.markdown("<br><br>", unsafe_allow_hash=True)
+st.markdown("<br><br>", unsafe_allow_html=True)  # FIXED: was unsafe_allow_hash
 st.markdown("""
     <div style='text-align: center; 
                 color: #555; 
