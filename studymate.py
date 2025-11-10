@@ -1,49 +1,61 @@
 import streamlit as st
 from datetime import datetime
-from transformers import pipeline
+import requests
 
-# ---- Model Setup ----
-@st.cache_resource
-def load_model():
-    # Load distilgpt2 on CPU
-    return pipeline(
-        "text-generation",
-        model="distilgpt2",
-        device=-1  # CPU
-    )
-
-study_bot = load_model()
-
-# ---- Function to ask StudyMate ----
+# ---- Function to ask StudyMate using HF Inference API ----
 def ask_studymate(topic, mode="explain"):
     if not topic.strip():
         return "Please enter a valid topic."
-
+    
     prompt_map = {
-        "explain": f"Explain the concept of {topic} clearly:\n",
-        "simplify": f"Explain {topic} in simple words:\n",
-        "examples": f"Give 3 real-world examples of {topic}:\n",
-        "quiz": f"Create 3 quiz questions with answers about {topic}:\n",
+        "explain": f"Provide a detailed explanation of {topic}, including key concepts and applications.",
+        "simplify": f"Explain {topic} in simple, easy-to-understand terms for beginners.",
+        "examples": f"Give 3 specific, real-world examples of {topic} with brief descriptions.",
+        "quiz": f"Create 3 multiple-choice questions about {topic}. Include the question, 4 options (A-D), and mark the correct answer.",
     }
-
+    
     prompt = prompt_map.get(mode, prompt_map["explain"])
-    max_tokens = {"explain": 150, "simplify": 100, "examples": 120, "quiz": 100}[mode]
-
+    
+    # Use Hugging Face Inference API (completely free, no signup needed)
+    API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+    
     try:
-        output = study_bot(
-            prompt,
-            max_new_tokens=max_tokens,
-            do_sample=True,
-            temperature=0.7,
-            truncation=True,
-            pad_token_id=50256  # GPT-2 EOS token
+        response = requests.post(
+            API_URL,
+            headers={"Content-Type": "application/json"},
+            json={
+                "inputs": prompt,
+                "parameters": {
+                    "max_new_tokens": 300,
+                    "temperature": 0.7,
+                    "top_p": 0.9,
+                    "return_full_text": False
+                },
+                "options": {
+                    "wait_for_model": True,
+                    "use_cache": False
+                }
+            },
+            timeout=30
         )
-        result = output[0]["generated_text"]
-        if result.startswith(prompt):
-            result = result[len(prompt):].strip()
-        return result if result else "Unable to generate response."
+        
+        if response.status_code == 200:
+            result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                text = result[0].get("generated_text", "")
+                return text.strip() if text else "Unable to generate response."
+        
+        elif response.status_code == 503:
+            return "⏳ Model is loading (first time takes 20-30 seconds). Please try again."
+        
+        else:
+            return f"API Error {response.status_code}. Please try again."
+            
+    except requests.exceptions.Timeout:
+        return "⏱️ Request timed out. Please try again."
     except Exception as e:
         return f"Error: {str(e)}"
+
 
 # ---- Streamlit App ----
 st.set_page_config(
@@ -54,59 +66,88 @@ st.set_page_config(
 )
 
 # Sidebar inputs
-st.sidebar.markdown("<h2 style='color:#1F618D;'>StudyMate Inputs</h2>", unsafe_allow_html=True)
-topic_input = st.sidebar.text_area(
-    "Enter topics (comma-separated):",
-    height=120,
-    placeholder="e.g., Quantum Physics, Photosynthesis"
-)
-mode_options = ["explain", "simplify", "examples", "quiz", "all"]
-mode = st.sidebar.selectbox("Choose a mode:", mode_options)
-generate_btn = st.sidebar.button("Generate")
+st.sidebar.markdown("<h2 style='color:#1F618D;'>StudyMate Settings</h2>", unsafe_allow_html=True)
+st.sidebar.info("💡 First generation may take 20-30 seconds while the AI model loads.")
 
-# Banner
+topic_input = st.sidebar.text_area(
+    "Enter topics:",
+    height=120,
+    placeholder="e.g., Quantum Physics, Photosynthesis, Python"
+)
+
+mode_options = {
+    "explain": "Explain",
+    "simplify": "Simplify",
+    "examples": "Examples",
+    "quiz": "Quiz",
+    "all": "All Modes"
+}
+
+mode = st.sidebar.selectbox(
+    "Learning mode:",
+    options=list(mode_options.keys()),
+    format_func=lambda x: mode_options[x]
+)
+
+generate_btn = st.sidebar.button("Generate", type="primary", use_container_width=True)
+
+# Main content
 st.markdown(
-    "<div style='background-color:#1F618D; padding:20px; border-radius:10px; text-align:center;'>"
+    "<div style='background-color:#1F618D; padding:25px; border-radius:10px; text-align:center;'>"
     "<h1 style='color:white; margin:0;'>📚 StudyMate</h1>"
+    "<p style='color:white; margin-top:8px;'>AI-Powered Study Assistant</p>"
     "</div>",
     unsafe_allow_html=True
 )
-st.markdown(
-    "<p style='color:#2C3E50; font-size:18px; text-align:center;'>Learn any topic interactively: explain, simplify, examples, or quiz.</p>",
-    unsafe_allow_html=True
-)
+
 st.markdown("<hr style='border:1px solid #BDC3C7;'>", unsafe_allow_html=True)
 
 # Styling
 st.markdown(
     """
     <style>
-    .stApp { background-color: #FFFFFF; }
-    h2 { color: #1F618D; }
-    h3 { color: #117A65; }
+    .stApp { background-color: #F5F5F5; }
+    h2 { color: #1F618D !important; }
+    h3 { color: #117A65 !important; }
     p { color: #2C3E50; }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# Generate answers
+# Generate content
 if generate_btn:
-    topics = [t.strip() for t in topic_input.split(",") if t.strip()]
+    topics = []
+    for line in topic_input.split('\n'):
+        topics.extend([t.strip() for t in line.split(',') if t.strip()])
+    
     if not topics:
-        st.warning("Please enter at least one topic.")
+        st.warning("⚠️ Please enter at least one topic")
     else:
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        for topic in topics:
-            st.markdown(f"<h2>{topic}</h2>", unsafe_allow_html=True)
-            modes_to_run = ["explain", "simplify", "examples", "quiz"] if mode=="all" else [mode]
+        progress_bar = st.progress(0)
+        modes_to_run = ["explain", "simplify", "examples", "quiz"] if mode == "all" else [mode]
+        total_tasks = len(topics) * len(modes_to_run)
+        current_task = 0
+        
+        for topic_idx, topic in enumerate(topics, 1):
+            st.markdown(f"## {topic}")
+            
             for m in modes_to_run:
-                st.markdown(f"<h3>{m.capitalize()}:</h3>", unsafe_allow_html=True)
-                with st.spinner(f"Generating {m}..."):
+                st.markdown(f"### {m.title()}")
+                
+                with st.spinner(f"Generating {m}... (may take 20-30 seconds first time)"):
                     result = ask_studymate(topic, m)
-                # Display each line separately for readability
-                lines = [line.strip() for line in result.split("\n") if line.strip()]
-                for idx, line in enumerate(lines, 1):
-                    st.markdown(f"{idx}. {line}")
-            st.markdown("<hr style='border:1px solid #BDC3C7;'>", unsafe_allow_html=True)
-        st.success(f"Session generated at {timestamp}")
+                    current_task += 1
+                    progress_bar.progress(current_task / total_tasks)
+                
+                st.info(result)
+            
+            if topic_idx < len(topics):
+                st.divider()
+        
+        progress_bar.empty()
+        st.success("✅ Content generated successfully!")
+        st.balloons()
+
+st.divider()
+st.caption("StudyMate • Educational Tool")
