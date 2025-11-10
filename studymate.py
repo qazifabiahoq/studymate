@@ -6,11 +6,11 @@ def ask_studymate(topic, mode="explain"):
     if not topic.strip():
         return "Please enter a valid topic."
     
-    # Get API key from secrets
-    API_KEY = st.secrets.get("GROQ_API_KEY", "")
-    
-    if not API_KEY:
-        return "⚙️ API key not configured. Add GROQ_API_KEY to Streamlit secrets."
+    # Correct secret access
+    try:
+        API_KEY = st.secrets["GROQ"]["GROQ_API_KEY"]
+    except KeyError:
+        return "⚙️ API key not configured. Add GROQ_API_KEY to Streamlit secrets under [GROQ]."
     
     prompts = {
         "explain": f"Explain {topic} in detail with key concepts and applications. Be clear and educational.",
@@ -28,9 +28,7 @@ def ask_studymate(topic, mode="explain"):
             },
             json={
                 "model": "mixtral-8x7b-32768",
-                "messages": [
-                    {"role": "user", "content": prompts.get(mode, prompts["explain"])}
-                ],
+                "messages": [{"role": "user", "content": prompts.get(mode, prompts["explain"])}],
                 "temperature": 0.7,
                 "max_tokens": 600
             },
@@ -42,7 +40,7 @@ def ask_studymate(topic, mode="explain"):
         elif response.status_code == 401:
             return "❌ Invalid API key. Check your Groq API key in secrets."
         else:
-            return f"API Error {response.status_code}. Please try again."
+            return f"API Error {response.status_code}: {response.text}"
             
     except requests.exceptions.Timeout:
         return "⏱️ Request timed out. Please try again."
@@ -50,39 +48,13 @@ def ask_studymate(topic, mode="explain"):
         return f"Error: {str(e)}"
 
 
-# Streamlit Config
+# --- Streamlit App ---
 st.set_page_config(
     page_title="StudyMate",
     page_icon="📚",
     layout="centered",
     initial_sidebar_state="expanded"
 )
-
-# CSS Styling
-st.markdown("""
-    <style>
-    .stApp { background-color: #F5F5F5; }
-    [data-testid="stSidebar"] { background-color: #FFFFFF; }
-    
-    .stButton > button {
-        background-color: #2E86AB !important;
-        color: white !important;
-        font-weight: 700 !important;
-        padding: 0.75rem 2rem !important;
-        border-radius: 8px !important;
-        font-size: 18px !important;
-        width: 100% !important;
-    }
-    
-    .stButton > button:hover {
-        background-color: #23698C !important;
-        transform: translateY(-2px);
-    }
-    
-    h1, h2 { color: #2E86AB !important; }
-    h3 { color: #495057 !important; }
-    </style>
-""", unsafe_allow_html=True)
 
 # Sidebar
 with st.sidebar:
@@ -131,7 +103,7 @@ if generate_btn:
                 
                 st.info(result)
                 
-                time.sleep(0.3)  # Small delay between requests
+                time.sleep(0.3)
             
             if topic_idx < len(topics):
                 st.divider()
