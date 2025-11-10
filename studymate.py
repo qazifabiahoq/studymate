@@ -179,7 +179,7 @@ st.markdown("""
     <div style='background: #2E86AB; padding: 25px; border-radius: 10px; 
                 text-align: center; margin-bottom: 20px;'>
         <h1 style='color: white; margin: 0; font-size: 2.2em;'>StudyMate</h1>
-        <p style='color: white; font-size: 1em; margin-top: 8px;'>AI Study Assistant</p>
+        <p style='color: white; font-size: 1em; margin-top: 8px;'>AI-Powered Study Assistant</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -195,6 +195,7 @@ if generate_btn:
         st.warning("Please enter at least one topic")
     else:
         for topic_idx, topic in enumerate(topics, 1):
+            # Topic heading
             st.markdown(f"""
                 <div style='background-color: #E9ECEF; padding: 12px; border-radius: 8px; 
                             margin: 15px 0; border-left: 4px solid #2E86AB;'>
@@ -205,10 +206,20 @@ if generate_btn:
             modes_to_run = ["explain", "simplify", "examples", "quiz"] if mode == "all" else [mode]
             
             for m in modes_to_run:
-                st.markdown(f"**{m.title()}**")
+                # Mode subtitle with proper styling
+                st.markdown(f"""
+                    <h3 style='color: #495057; 
+                               font-size: 1.1em; 
+                               margin-top: 15px; 
+                               margin-bottom: 8px;
+                               font-weight: 600;'>
+                        {m.title()}
+                    </h3>
+                """, unsafe_allow_html=True)
                 
                 result = ask_studymate(topic, m)
                 
+                # Content box
                 st.markdown(f"""
                     <div style='background-color: #F8F9FA; padding: 18px; border-radius: 6px; 
                                 border-left: 3px solid #6C757D; margin: 10px 0;'>
