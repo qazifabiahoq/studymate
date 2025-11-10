@@ -4,78 +4,73 @@ import requests
 import time
 import random
 
-# ---- Educational content generator (works even when API fails) ----
+# ---- Educational content generator ----
 def generate_educational_content(topic, mode):
-    """Generate actual educational content when APIs are down"""
+    """Generate actual educational content"""
     
     if mode == "explain":
-        return f"""**{topic}** is a fundamental concept in its field. Here's what you need to know:
+        return f"""**{topic}** is a fundamental concept in its field.
 
-- **Definition**: {topic} refers to the principles and mechanisms underlying this concept
-- **Key Aspects**: Understanding {topic} involves grasping its core components and how they interact
-- **Importance**: This concept plays a crucial role in both theoretical understanding and practical applications
-- **Applications**: {topic} is used across various domains to solve real-world problems
+**Key Points:**
+- Core principles and mechanisms underlying this concept
+- Understanding how components interact with each other
+- Importance in theoretical understanding and practical applications
+- Used across various domains to solve real-world problems
 
-To learn more, research academic papers, textbooks, and educational videos on {topic}."""
+For deeper learning, explore academic papers, textbooks, and educational resources on {topic}."""
 
     elif mode == "simplify":
-        return f"""**{topic} - Simple Explanation**
+        return f"""**{topic} - Simplified**
 
-Think of {topic} as a building block in its field. Here's the simple version:
+- A foundational concept in its field
+- Helps understand how certain things work
+- Used by experts to solve problems and make predictions
+- Relevant in both everyday situations and advanced applications
 
-- It's a concept that helps us understand how certain things work
-- Experts use it to solve problems and make predictions
-- You can see it in action in everyday situations
-- Learning {topic} opens doors to understanding more complex ideas
-
-Start with beginner resources and gradually build your knowledge!"""
+Start with beginner-friendly resources and build up gradually."""
 
     elif mode == "examples":
-        return f"""**3 Examples of {topic}:**
+        return f"""**Examples of {topic}:**
 
-**Example 1: Academic Context**
-In educational settings, {topic} is demonstrated through experiments and case studies that show its practical relevance.
+**1. Academic Context**
+Demonstrated through experiments and case studies in educational settings.
 
-**Example 2: Industry Application**
-Companies and professionals use {topic} to improve processes, make decisions, and innovate in their fields.
+**2. Industry Application**
+Used by professionals to improve processes, make decisions, and drive innovation.
 
-**Example 3: Daily Life**
-You encounter {topic} in everyday situations, often without realizing it - from technology you use to natural phenomena you observe."""
+**3. Practical Usage**
+Applied in real-world scenarios across various fields and industries."""
 
     elif mode == "quiz":
-        return f"""**Quiz on {topic}:**
+        return f"""**Quiz: {topic}**
 
-**Question 1:** What is the primary purpose of {topic}?
-A) To complicate simple concepts
+**Q1:** What is the primary purpose of {topic}?
+A) To complicate concepts
 B) To provide a framework for understanding
-C) To replace existing methods
-D) To limit applications
+C) To replace methods
+D) To limit scope
 **Answer: B**
 
-**Question 2:** In which fields is {topic} most relevant?
-A) Only theoretical research
-B) Only practical applications  
-C) Both theoretical and practical domains
-D) Neither - it's outdated
+**Q2:** Where is {topic} most applicable?
+A) Only theory
+B) Only practice
+C) Both theory and practice
+D) Neither
 **Answer: C**
 
-**Question 3:** What's the best way to master {topic}?
-A) Memorize definitions only
-B) Combine study with practical application
-C) Avoid complex materials
-D) Learn it in one session
+**Q3:** Best approach to learn {topic}?
+A) Memorize only
+B) Study with practical application
+C) Avoid complexity
+D) One-time learning
 **Answer: B**"""
 
 
-# ---- Try AI API first, fall back to educational content ----
+# ---- Try AI, fallback to content ----
 def ask_studymate(topic, mode="explain"):
-    """
-    Try AI generation, but always provide educational content
-    """
     if not topic.strip():
         return "Please enter a valid topic."
     
-    # Quick prompts
     prompts = {
         "explain": f"Explain {topic}:",
         "simplify": f"Simply explain {topic}:",
@@ -85,7 +80,7 @@ def ask_studymate(topic, mode="explain"):
     
     prompt = prompts.get(mode, prompts["explain"])
     
-    # Try ONE fast API call (5 second timeout)
+    # Try API quickly
     try:
         response = requests.post(
             "https://api-inference.huggingface.co/models/gpt2",
@@ -108,11 +103,10 @@ def ask_studymate(topic, mode="explain"):
     except:
         pass
     
-    # If API fails, generate educational content instead
     return generate_educational_content(topic, mode)
 
 
-# ---- Streamlit Configuration ----
+# ---- Config ----
 st.set_page_config(
     page_title="StudyMate",
     page_icon="📚",
@@ -127,90 +121,69 @@ st.markdown("""
     [data-testid="stSidebar"] { background-color: #FFFFFF; }
     
     .stButton > button {
-        background-color: #FF4136 !important;
+        background-color: #2E86AB !important;
         color: white !important;
-        font-weight: 900 !important;
-        border: 4px solid #FF4136 !important;
-        padding: 1rem 2rem !important;
-        border-radius: 12px !important;
-        font-size: 20px !important;
+        font-weight: 700 !important;
+        border: none !important;
+        padding: 0.75rem 2rem !important;
+        border-radius: 8px !important;
+        font-size: 18px !important;
         width: 100% !important;
-        box-shadow: 0 6px 10px rgba(255,65,54,0.4) !important;
-        text-transform: uppercase !important;
     }
     
     .stButton > button:hover {
-        background-color: #DC352F !important;
-        transform: scale(1.08);
+        background-color: #23698C !important;
+        transform: translateY(-2px);
     }
     
     .stSelectbox label {
-        font-size: 16px !important;
-        font-weight: 700 !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
         color: #000000 !important;
     }
     
-    h1, h2, h3 { color: #1F618D !important; }
-    p { color: #000000 !important; line-height: 1.8; }
+    h1, h2 { color: #2E86AB !important; }
+    h3 { color: #495057 !important; }
+    p { color: #000000 !important; line-height: 1.7; }
     </style>
 """, unsafe_allow_html=True)
 
 # ---- Sidebar ----
 with st.sidebar:
-    st.markdown("### ⚙️ Settings")
+    st.markdown("### Settings")
     st.markdown("---")
     
     topic_input = st.text_area(
-        "📝 Topics:",
+        "Enter topics:",
         height=100,
-        placeholder="Quantum Computing\nPhotosynthesis",
+        placeholder="e.g., Photosynthesis, Python, Calculus",
         help="One per line or comma-separated"
     )
     
-    mode_labels = {
-        "explain": "Explain",
-        "simplify": "Simplify", 
-        "examples": "Examples",
-        "quiz": "Quiz",
-        "all": "All Modes"
-    }
-    
     mode = st.selectbox(
-        "Mode:",
-        options=list(mode_labels.keys()),
-        format_func=lambda x: mode_labels[x]
+        "Learning mode:",
+        options=["explain", "simplify", "examples", "quiz", "all"],
+        format_func=lambda x: x.title() if x != "all" else "All Modes"
     )
     
     st.markdown("---")
     
     generate_btn = st.button(
-        "🚀 GENERATE", 
+        "Generate", 
         type="primary",
         use_container_width=True
     )
-    
-    st.markdown("---")
-    st.success("✅ Always works - even when AI is busy!")
 
-# ---- Main Content ----
+# ---- Main ----
 st.markdown("""
-    <div style='background: linear-gradient(135deg, #1F618D 0%, #117A65 100%); 
-                padding: 30px; border-radius: 15px; text-align: center; margin-bottom: 25px;'>
-        <h1 style='color: white; margin: 0; font-size: 2.5em;'>📚 StudyMate</h1>
-        <p style='color: white; font-size: 1.2em; margin-top: 10px;'>AI Study Assistant</p>
+    <div style='background: #2E86AB; padding: 25px; border-radius: 10px; 
+                text-align: center; margin-bottom: 20px;'>
+        <h1 style='color: white; margin: 0; font-size: 2.2em;'>StudyMate</h1>
+        <p style='color: white; font-size: 1em; margin-top: 8px;'>AI Study Assistant</p>
     </div>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-    <div style='background-color: #90EE90; padding: 20px; border-radius: 10px; 
-                border-left: 5px solid #28A745; margin-bottom: 25px;'>
-        <p style='margin: 0; font-size: 16px; font-weight: 600; color: #000000;'>
-        ✅ 100% Reliable • Always Generates Content • No Waiting
-        </p>
-    </div>
-""", unsafe_allow_html=True)
-
-st.markdown("<hr style='border: 2px solid #CCC; margin: 30px 0;'>", unsafe_allow_html=True)
+st.markdown("<hr style='border: 1px solid #DEE2E6; margin: 25px 0;'>", unsafe_allow_html=True)
 
 # ---- Generate ----
 if generate_btn:
@@ -219,52 +192,41 @@ if generate_btn:
         topics.extend([t.strip() for t in line.split(',') if t.strip()])
     
     if not topics:
-        st.warning("⚠️ Please enter at least one topic!")
+        st.warning("Please enter at least one topic")
     else:
-        st.info(f"⚡ Generating for {len(topics)} topic(s)...")
-        
         for topic_idx, topic in enumerate(topics, 1):
             st.markdown(f"""
-                <div style='background-color: #E3F2FD; padding: 15px; border-radius: 10px; 
-                            margin: 20px 0; border-left: 5px solid #1F618D;'>
-                    <h2 style='margin: 0; color: #1F618D;'>📖 {topic}</h2>
+                <div style='background-color: #E9ECEF; padding: 12px; border-radius: 8px; 
+                            margin: 15px 0; border-left: 4px solid #2E86AB;'>
+                    <h2 style='margin: 0; font-size: 1.4em; color: #2E86AB;'>{topic}</h2>
                 </div>
             """, unsafe_allow_html=True)
             
             modes_to_run = ["explain", "simplify", "examples", "quiz"] if mode == "all" else [mode]
             
             for m in modes_to_run:
-                icons = {"explain": "📘", "simplify": "🪄", "examples": "💡", "quiz": "📝"}
-                
-                st.markdown(f"""
-                    <h3 style='margin-top: 18px; color: #117A65;'>
-                        {icons.get(m)} {m.title()}
-                    </h3>
-                """, unsafe_allow_html=True)
+                st.markdown(f"**{m.title()}**")
                 
                 result = ask_studymate(topic, m)
                 
                 st.markdown(f"""
-                    <div style='background-color: #FFFACD; padding: 20px; border-radius: 8px; 
-                                border-left: 4px solid #117A65; margin: 12px 0;'>
-                        <div style='font-size: 16px; line-height: 1.9; color: #000000; 
-                                    font-weight: 500; white-space: pre-wrap;'>
+                    <div style='background-color: #F8F9FA; padding: 18px; border-radius: 6px; 
+                                border-left: 3px solid #6C757D; margin: 10px 0;'>
+                        <div style='font-size: 15px; line-height: 1.7; color: #000000; white-space: pre-wrap;'>
                             {result}
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
             
             if topic_idx < len(topics):
-                st.markdown("<hr style='border: 1px solid #CCC; margin: 35px 0;'>", unsafe_allow_html=True)
+                st.markdown("<hr style='border: 1px solid #DEE2E6; margin: 25px 0;'>", unsafe_allow_html=True)
         
-        st.success("✅ Content generated successfully!")
-        st.balloons()
+        st.success("Generated successfully")
 
 # Footer
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("""
-    <div style='text-align: center; padding: 20px; border-top: 2px solid #CCC;'>
-        <p style='margin: 0; font-size: 15px; font-weight: 600; color: #000;'>Made with ❤️ by StudyMate</p>
-        <p style='margin: 8px 0 0 0; font-size: 14px; color: #000;'>100% Free • Always Works</p>
+    <div style='text-align: center; padding: 15px; border-top: 1px solid #DEE2E6; color: #6C757D;'>
+        <p style='margin: 0; font-size: 14px;'>StudyMate • Educational Tool</p>
     </div>
 """, unsafe_allow_html=True)
