@@ -27,7 +27,7 @@ def ask_studymate(topic, mode="explain"):
                 "Content-Type": "application/json"
             },
             json={
-                "model": "mixtral-8x7b-32768",
+                "model": "Mistral‑Saba‑24b",
                 "messages": [{"role": "user", "content": prompts.get(mode, prompts["explain"])}],
                 "temperature": 0.7,
                 "max_tokens": 600
