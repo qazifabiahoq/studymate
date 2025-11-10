@@ -2,23 +2,34 @@ import streamlit as st
 import requests
 import time
 
+# --- Quota Settings ---
+MAX_DAILY_CALLS = 200  # safe buffer under free plan (250/day)
+
+# Initialize session counter
+if "calls_made" not in st.session_state:
+    st.session_state.calls_made = 0
+
+# --- API Function ---
 def ask_studymate(topic, mode="explain"):
     if not topic.strip():
         return "Please enter a valid topic."
-    
-    # Correct secret access
+
+    if st.session_state.calls_made >= MAX_DAILY_CALLS:
+        return "⚠️ You’ve reached your safe free quota for today. Try again tomorrow."
+
+    # Get API key from secrets
     try:
         API_KEY = st.secrets["GROQ"]["GROQ_API_KEY"]
     except KeyError:
         return "⚙️ API key not configured. Add GROQ_API_KEY to Streamlit secrets under [GROQ]."
-    
+
     prompts = {
         "explain": f"Explain {topic} in detail with key concepts and applications. Be clear and educational.",
         "simplify": f"Explain {topic} in simple, beginner-friendly terms that anyone can understand.",
         "examples": f"Give 3 specific, real-world examples of {topic} with brief explanations for each.",
         "quiz": f"Create 3 multiple-choice questions about {topic}. For each question, provide 4 options (A-D) and clearly mark the correct answer."
     }
-    
+
     try:
         response = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
@@ -27,88 +38,103 @@ def ask_studymate(topic, mode="explain"):
                 "Content-Type": "application/json"
             },
             json={
-                "model": "groq/compound-mini",  # <- Corrected here
+                "model": "groq/compound-mini",  # Accessible model
                 "messages": [{"role": "user", "content": prompts.get(mode, prompts["explain"])}],
                 "temperature": 0.7,
                 "max_tokens": 600
             },
             timeout=20
         )
-        
+
         if response.status_code == 200:
+            st.session_state.calls_made += 1  # increment counter
             return response.json()["choices"][0]["message"]["content"]
         elif response.status_code == 401:
             return "❌ Invalid API key. Check your Groq API key in secrets."
         else:
             return f"API Error {response.status_code}: {response.text}"
-            
+
     except requests.exceptions.Timeout:
         return "⏱️ Request timed out. Please try again."
     except Exception as e:
         return f"Error: {str(e)}"
 
 
-# --- Streamlit App ---
+# --- Streamlit App Config ---
 st.set_page_config(
     page_title="StudyMate",
     page_icon="📚",
-    layout="centered",
-    initial_sidebar_state="expanded"
+    layout="centered"
 )
 
-# Sidebar
-with st.sidebar:
-    st.markdown("### Settings")
-    st.markdown("---")
-    
-    topic_input = st.text_area(
-        "Enter topics:",
-        height=100,
-        placeholder="Physics, Python, Biology, History..."
-    )
-    
-    mode = st.selectbox(
-        "Learning mode:",
-        ["explain", "simplify", "examples", "quiz", "all"],
-        format_func=lambda x: x.title() if x != "all" else "All Modes"
-    )
-    
-    st.markdown("---")
-    generate_btn = st.button("Generate", type="primary", use_container_width=True)
+# --- Header Banner ---
+st.image("studymate_banner.png", use_column_width=True)
+st.markdown(
+    f"""
+    <style>
+        .stApp {{
+            background-color: #f5f5f5;
+        }}
+        h1, h2, h3 {{
+            color: #1f618d !important;
+        }}
+        .stButton > button {{
+            background-color: #1f618d !important;
+            color: white !important;
+            font-weight: 700 !important;
+            padding: 0.75rem 2rem !important;
+            border-radius: 8px !important;
+            font-size: 18px !important;
+            width: 100% !important;
+        }}
+        .stButton > button:hover {{
+            background-color: #145a86 !important;
+            transform: translateY(-2px);
+        }}
+    </style>
+    """, unsafe_allow_html=True
+)
 
-# Main Content
 st.title("StudyMate")
 st.subheader("AI-Powered Study Assistant")
 st.divider()
 
-# Generate Content
+# --- Input Section in Main Area ---
+topic_input = st.text_area(
+    "Enter topics:",
+    height=100,
+    placeholder="Physics, Python, Biology, History..."
+)
+
+mode = st.selectbox(
+    "Learning mode:",
+    ["explain", "simplify", "examples", "quiz", "all"],
+    format_func=lambda x: x.title() if x != "all" else "All Modes"
+)
+
+generate_btn = st.button("Generate", type="primary", use_container_width=True)
+
+# --- Generate Content ---
 if generate_btn:
-    topics = []
-    for line in topic_input.split('\n'):
-        topics.extend([t.strip() for t in line.split(',') if t.strip()])
-    
-    if not topics:
-        st.warning("Please enter at least one topic")
+    if st.session_state.calls_made >= MAX_DAILY_CALLS:
+        st.error("⚠️ You’ve reached your safe free quota for today. Try again tomorrow.")
     else:
-        for topic_idx, topic in enumerate(topics, 1):
-            st.markdown(f"## {topic}")
-            
-            modes = ["explain", "simplify", "examples", "quiz"] if mode == "all" else [mode]
-            
-            for m in modes:
-                st.markdown(f"### {m.title()}")
-                
-                with st.spinner(f"Generating {m}..."):
-                    result = ask_studymate(topic, m)
-                
-                st.info(result)
-                
-                time.sleep(0.3)
-            
-            if topic_idx < len(topics):
-                st.divider()
-        
-        st.success("✅ Generated successfully!")
+        topics = [t.strip() for line in topic_input.split('\n') for t in line.split(',') if t.strip()]
+        if not topics:
+            st.warning("Please enter at least one topic")
+        else:
+            for idx, topic in enumerate(topics, 1):
+                st.markdown(f"## {topic}")
+                modes = ["explain", "simplify", "examples", "quiz"] if mode == "all" else [mode]
+                for m in modes:
+                    st.markdown(f"### {m.title()}")
+                    with st.spinner(f"Generating {m}..."):
+                        result = ask_studymate(topic, m)
+                    st.info(result)
+                    time.sleep(0.3)
+                if idx < len(topics):
+                    st.divider()
+            st.success("✅ Generated successfully!")
 
 st.divider()
-st.caption("StudyMate • Educational Tool")
+st.caption(f"StudyMate • Educational Tool • Calls made today: {st.session_state.calls_made}/{MAX_DAILY_CALLS}")
