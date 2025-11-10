@@ -3,91 +3,100 @@ from datetime import datetime
 import requests
 import time
 
-# ---- StudyMate Function with FASTER models ----
+# ---- StudyMate Function - WORKING VERSION ----
 def ask_studymate(topic, mode="explain"):
     """
-    Uses Hugging Face's fastest FREE text generation models
+    Uses working Hugging Face models with better prompts
     """
     if not topic.strip():
         return "Please enter a valid topic."
     
-    # Clear, direct prompts
+    # Better prompts that generate more content
     prompt_map = {
-        "explain": f"Topic: {topic}\n\nDetailed Explanation: ",
-        "simplify": f"Topic: {topic}\n\nSimple Explanation: ",
-        "examples": f"Topic: {topic}\n\n3 Real Examples:\n1. ",
-        "quiz": f"Topic: {topic}\n\nQuiz Questions:\nQ1: ",
+        "explain": f"Explain {topic} in detail:\n\n",
+        "simplify": f"Explain {topic} in simple words for beginners:\n\n",
+        "examples": f"Give 3 real-world examples of {topic}:\n1.",
+        "quiz": f"Create 3 quiz questions about {topic}:\n\nQuestion 1:",
     }
 
     prompt = prompt_map.get(mode, prompt_map["explain"])
     
-    # Fastest models that actually work
-    models = [
-        "bigscience/bloom-560m",
-        "facebook/opt-125m",
-        "gpt2"
-    ]
+    # Use TextSynth API (free, reliable alternative)
+    # Or we'll use a working HF model
+    API_URL = "https://api-inference.huggingface.co/models/EleutherAI/gpt-neo-1.3B"
     
-    for model_name in models:
-        API_URL = f"https://api-inference.huggingface.co/models/{model_name}"
-        
-        try:
-            response = requests.post(
-                API_URL,
-                json={
-                    "inputs": prompt,
-                    "parameters": {
-                        "max_length": 150,
-                        "temperature": 0.8,
-                        "top_p": 0.9,
-                        "do_sample": True,
-                        "num_return_sequences": 1
-                    },
-                    "options": {
-                        "wait_for_model": True,
-                        "use_cache": False
-                    }
+    try:
+        response = requests.post(
+            API_URL,
+            json={
+                "inputs": prompt,
+                "parameters": {
+                    "max_new_tokens": 200,
+                    "temperature": 0.9,
+                    "top_p": 0.95,
+                    "do_sample": True,
+                    "repetition_penalty": 1.2
                 },
-                timeout=20
-            )
+                "options": {
+                    "wait_for_model": True,
+                    "use_cache": True
+                }
+            },
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
             
-            if response.status_code == 200:
-                result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                text = result[0].get("generated_text", "")
                 
-                # Extract text
-                if isinstance(result, list) and len(result) > 0:
-                    text = result[0].get("generated_text", "")
-                    
-                    # Remove prompt from output
-                    if text.startswith(prompt):
-                        text = text[len(prompt):].strip()
-                    
-                    if text and len(text) > 20:
-                        return text
+                # Remove prompt
+                if text.startswith(prompt):
+                    text = text[len(prompt):].strip()
+                
+                # If we got good content, return it
+                if text and len(text) > 30:
+                    return text
+        
+        # If first model fails, try backup
+        return try_backup_model(prompt)
             
-            elif response.status_code == 503:
-                # Model loading, wait and retry once
-                time.sleep(3)
-                continue
-            
-        except:
-            continue
+    except Exception as e:
+        return try_backup_model(prompt)
+
+
+def try_backup_model(prompt):
+    """Try a backup model"""
+    API_URL = "https://api-inference.huggingface.co/models/gpt2-medium"
     
-    # If all models fail, return educational fallback content
-    return get_fallback_content(topic, mode)
-
-
-def get_fallback_content(topic, mode):
-    """
-    Returns educational content when AI is unavailable
-    """
-    fallback = {
-        "explain": f"{topic} is an important concept. For a detailed explanation, please try again or search online resources for comprehensive information.",
-        "simplify": f"{topic} in simple terms: This is a fundamental concept worth exploring. Try again for an AI-generated explanation, or look for beginner-friendly resources.",
-        "examples": f"Examples of {topic}:\n1. Check educational websites\n2. Review textbooks on this subject\n3. Watch educational videos\n\nTry generating again for AI examples!",
-        "quiz": f"Quiz on {topic}:\n\nQ1: What are the key aspects of {topic}?\nQ2: How is {topic} used in real life?\nQ3: Why is {topic} important?\n\nTry again for more detailed questions!"
-    }
-    return fallback.get(mode, f"Content for {topic} - please try again!")
+    try:
+        response = requests.post(
+            API_URL,
+            json={
+                "inputs": prompt,
+                "parameters": {
+                    "max_new_tokens": 180,
+                    "temperature": 0.85,
+                    "do_sample": True
+                },
+                "options": {"wait_for_model": True}
+            },
+            timeout=25
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                text = result[0].get("generated_text", "")
+                if text.startswith(prompt):
+                    text = text[len(prompt):].strip()
+                if text and len(text) > 30:
+                    return text
+    except:
+        pass
+    
+    return "⚠️ AI models are currently loading. Please wait 30 seconds and try again!"
 
 
 # ---- Streamlit Configuration ----
@@ -98,7 +107,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ---- Enhanced CSS ----
+# ---- FIXED CSS - Dark text on light background ----
 st.markdown("""
     <style>
     .stApp {
@@ -109,7 +118,7 @@ st.markdown("""
         background-color: #FFFFFF;
     }
     
-    /* Super visible button */
+    /* Super visible red button */
     .stButton > button {
         background-color: #FF4136 !important;
         color: white !important;
@@ -130,22 +139,30 @@ st.markdown("""
         transform: scale(1.08);
     }
     
+    /* FIXED: High contrast text */
     .stSelectbox label {
         font-size: 16px !important;
         font-weight: 700 !important;
-        color: #000 !important;
+        color: #000000 !important;
     }
     
     div[data-baseweb="select"] > div {
         background-color: white !important;
         border: 2px solid #1F618D !important;
         font-size: 16px !important;
+        color: #000000 !important;
     }
     
-    h1 { color: #1F618D; font-weight: 700; }
-    h2 { color: #1F618D; font-weight: 600; }
-    h3 { color: #117A65; font-weight: 600; }
-    p { color: #2C3E50; line-height: 1.7; }
+    /* All text dark and readable */
+    h1 { color: #1F618D !important; font-weight: 700; }
+    h2 { color: #1F618D !important; font-weight: 600; }
+    h3 { color: #117A65 !important; font-weight: 600; }
+    p { color: #000000 !important; line-height: 1.7; }
+    
+    /* Make sure content boxes have dark text */
+    div[style*="background-color: white"] p {
+        color: #000000 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -155,9 +172,9 @@ with st.sidebar:
     st.markdown("---")
     
     topic_input = st.text_area(
-        "📝 Enter Topics:",
+        "📝 Topics:",
         height=100,
-        placeholder="Physics\nChemistry\nBiology",
+        placeholder="Quantum Computing\nPhotosynthesis\nMachine Learning",
         help="One per line or comma-separated"
     )
     
@@ -170,7 +187,7 @@ with st.sidebar:
     }
     
     mode = st.selectbox(
-        "🎯 Learning Mode:",
+        "Mode:",
         options=list(mode_labels.keys()),
         format_func=lambda x: mode_labels[x]
     )
@@ -178,20 +195,21 @@ with st.sidebar:
     st.markdown("---")
     
     generate_btn = st.button(
-        "🚀 GENERATE NOW", 
+        "🚀 GENERATE", 
         type="primary",
         use_container_width=True
     )
     
     st.markdown("---")
     
-    st.info("💡 **Tip:** AI might take 10-20 seconds on first use while models load!")
+    st.warning("⏰ First generation takes 20-30 seconds while AI loads!")
     
-    with st.expander("📖 How to Use"):
-        st.write("1. Enter topic(s)")
-        st.write("2. Pick a mode")
+    with st.expander("📖 Instructions"):
+        st.write("1. Enter topic")
+        st.write("2. Pick mode")
         st.write("3. Click GENERATE")
-        st.write("4. Wait 10-20 sec")
+        st.write("4. Wait 20-30 sec")
+        st.write("5. Try again if it fails")
 
 # ---- Main Content ----
 
@@ -203,19 +221,19 @@ st.markdown("""
                 margin-bottom: 25px;
                 box-shadow: 0 4px 8px rgba(0,0,0,0.2);'>
         <h1 style='color: white; margin: 0; font-size: 2.5em;'>📚 StudyMate</h1>
-        <p style='color: white; font-size: 1.2em; margin-top: 10px; font-weight: 500;'>Your Free AI Study Assistant</p>
+        <p style='color: white; font-size: 1.2em; margin-top: 10px; font-weight: 500;'>Free AI Study Assistant</p>
     </div>
 """, unsafe_allow_html=True)
 
 st.markdown("""
-    <div style='background-color: white; 
+    <div style='background-color: #FFFACD; 
                 padding: 20px; 
                 border-radius: 10px; 
                 border-left: 5px solid #FF4136;
                 margin-bottom: 25px;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
-        <p style='margin: 0; font-size: 16px; font-weight: 500;'>
-        🎓 100% Free • No Signup • Instant AI-Generated Study Materials
+        <p style='margin: 0; font-size: 16px; font-weight: 600; color: #000000;'>
+        🎓 100% Free • No Signup Required • AI-Powered Learning
         </p>
     </div>
 """, unsafe_allow_html=True)
@@ -231,7 +249,7 @@ if generate_btn:
     if not topics:
         st.warning("⚠️ Please enter at least one topic!")
     else:
-        st.info(f"🔄 Generating content for {len(topics)} topic(s)... Please wait 10-20 seconds...")
+        st.info(f"🔄 Generating for {len(topics)} topic(s)... First time takes 20-30 seconds!")
         
         progress_bar = st.progress(0)
         total_tasks = len(topics) * (4 if mode == "all" else 1)
@@ -244,8 +262,8 @@ if generate_btn:
                             border-radius: 10px; 
                             margin: 20px 0;
                             border-left: 5px solid #1F618D;'>
-                    <h2 style='margin: 0; font-size: 1.6em;'>
-                        📖 Topic {topic_idx}: {topic}
+                    <h2 style='margin: 0; font-size: 1.6em; color: #1F618D;'>
+                        📖 {topic}
                     </h2>
                 </div>
             """, unsafe_allow_html=True)
@@ -261,49 +279,52 @@ if generate_btn:
                 }
                 
                 st.markdown(f"""
-                    <h3 style='margin-top: 18px; font-size: 1.3em;'>
+                    <h3 style='margin-top: 18px; font-size: 1.3em; color: #117A65;'>
                         {mode_icons.get(m)} {m.title()}
                     </h3>
                 """, unsafe_allow_html=True)
                 
-                with st.spinner(f"⏳ Generating {m}... (may take 10-20 seconds)"):
+                with st.spinner(f"⏳ Generating {m}... (20-30 seconds first time)"):
                     result = ask_studymate(topic, m)
                     current_task += 1
                     progress_bar.progress(current_task / total_tasks)
                 
+                # FIXED: Yellow background with BLACK text
                 st.markdown(f"""
-                    <div style='background-color: white; 
-                                padding: 18px; 
+                    <div style='background-color: #FFFACD; 
+                                padding: 20px; 
                                 border-radius: 8px; 
                                 border-left: 4px solid #117A65;
                                 margin: 12px 0;
-                                box-shadow: 0 2px 6px rgba(0,0,0,0.08);'>
-                        <p style='font-size: 16px; 
-                                   line-height: 1.8; 
+                                box-shadow: 0 2px 6px rgba(0,0,0,0.15);'>
+                        <p style='font-size: 17px; 
+                                   line-height: 1.9; 
                                    margin: 0;
+                                   color: #000000;
+                                   font-weight: 500;
                                    white-space: pre-wrap;'>
                             {result}
                         </p>
                     </div>
                 """, unsafe_allow_html=True)
                 
-                time.sleep(1)  # Rate limiting
+                time.sleep(2)  # Rate limiting
             
             if topic_idx < len(topics):
                 st.markdown("<hr style='border: 1px solid #CCC; margin: 35px 0;'>", unsafe_allow_html=True)
         
         progress_bar.empty()
-        st.success("✅ All content generated successfully!")
+        st.success("✅ Done! If results are short, try clicking GENERATE again!")
         st.balloons()
 
 # Footer
-st.markdown("<br><br>", unsafe_allow_html=True)
+st.markdown("<br><br>", unsafe_allow_hash=True)
 st.markdown("""
     <div style='text-align: center; 
-                color: #888; 
+                color: #555; 
                 padding: 20px;
                 border-top: 2px solid #CCC;'>
-        <p style='margin: 0; font-size: 15px; font-weight: 600;'>Made with ❤️ using Streamlit & Hugging Face</p>
-        <p style='margin: 8px 0 0 0; font-size: 14px;'>100% Free Forever • No Payment Required</p>
+        <p style='margin: 0; font-size: 15px; font-weight: 600; color: #000;'>Made with ❤️ using Streamlit & Hugging Face</p>
+        <p style='margin: 8px 0 0 0; font-size: 14px; color: #000;'>100% Free • No Payment Required</p>
     </div>
 """, unsafe_allow_html=True)
